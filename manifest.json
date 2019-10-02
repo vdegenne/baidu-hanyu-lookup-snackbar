@@ -1,0 +1,16 @@
+{
+  "name": "Baidu Hanyu Lookup Snackbar",
+  "description": "Chrome extension displaying a handy snackbar to quickly play the pinyin of a Chinese word and open dictionaries.",
+  "version": "1.0.0",
+  "manifest_version": 2,
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["jquery.min.js", "content.js"]
+    }
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "web_accessible_resources": ["images/naver.png"]
+}
