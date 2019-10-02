@@ -1,6 +1,6 @@
 # Baidu Hanyu Lookup Snackbar
 
-Chrome extension displaying a handy snackbar to quickly play the pinyin of a Chinese word and open dictionaries.
+Chrome extension that display a handful snackbar with pronunciation feature and quick dictionaries access when you select a chinese word in Chrome browser.
 
 <p align="center">
   <img src="./screenshot.bmp" width="80%">
@@ -16,7 +16,7 @@ Chrome extension displaying a handy snackbar to quickly play the pinyin of a Chi
 - install the dependencies : `npm i`
 - build : `npm run build`
 - load the folder inside of Chrome (from the extension interface)
-- enjoy
+- now when you select a chinese word on a webpage the snackbar appears.
 
 ## contact
 
