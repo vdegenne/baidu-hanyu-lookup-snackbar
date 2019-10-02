@@ -2,9 +2,13 @@
 
 Chrome extension displaying a handy snackbar to quickly play the pinyin of a Chinese word and open dictionaries.
 
-<img src="./screenshot.bmp">
+<p align="center">
+  <img src="./screenshot.bmp" width="80%">
+</p>
 
-<p style="color:red">This extension is not available on the store because the information used as the data foundation is of a private domain. Use for your own education only. You are free to copy and modify the code, but not as a commercial use intention.</p>
+
+> ⚠️ This extension is not available on the store because the information used as the data foundation is of a private domain. Use for your own education only. You are free to copy and modify the code, but not as a commercial use intention.
+
 
 ## installation
 
