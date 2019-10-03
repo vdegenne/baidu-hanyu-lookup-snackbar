@@ -14,9 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const content = await response.text()
       const document = parser.parseFromString(content, 'text/html')
       const spans = [...document.querySelectorAll('[id=pinyin] span')]
-      // if (!spans.length) {
-      //   sendResponse(null)
-      // }
+      const englishDt = document.querySelector('[id=fanyi-wrapper] .tab-content dt')
 
       sendResponse({
         text: request.word,
@@ -31,9 +29,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           let audio = element.lastElementChild.getAttribute('url')
 
           return { text, audio }
-        })
+        }),
+        english: englishDt ? englishDt.textContent : undefined
       })
     })
-    return true
+  } else if (request.message === 'fetch_korean_definition') {
+    fetch(`http://localhost:5000/korean/${request.word}`)
+      .then(async response => {
+        console.log(response)
+        if (response.status !== 200) {
+          sendResponse(null)
+          return
+        }
+
+        sendResponse(await response.text())
+      })
+      .catch(e => {
+        sendResponse(-1)
+      })
   }
+  return true
 })
