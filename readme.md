@@ -1,16 +1,16 @@
 # Baidu Hanyu Lookup Snackbar
 
-Chrome extension that display a handful snackbar with pronunciation feature and quick dictionaries access when you select a chinese word in Chrome browser.
+Chrome extension that displays a handful snackbar with pronunciation feature and quick dictionaries access when you select a Chinese word in Chrome Browser.
 
 <p align="center">
   <img src="./screenshot.bmp" width="80%">
 </p>
 
 
-> ⚠️ This extension is not available on the store because the information used as the data foundation is of a private domain. Use for your own education only. You are free to copy and modify the code, but not as a commercial use intention.
+> ⚠️ This extension is not available on the store because the information used as the data foundation is of private domains. Use for your own education only. You are free to copy and modify the code, but not for a commercial use intention.
 
 
-## installation
+## Installation
 
 - clone the repository
 - install the dependencies : `npm i`
@@ -30,6 +30,6 @@ This will run a local server on the port `5000`.
 Now it should work.
 
 
-## contact
+## Contact
 
 vdegenne (at) gmail (dot) com
