@@ -6,6 +6,7 @@ import '@material/mwc-dialog'
 import { html, TemplateResult, render } from 'lit-html'
 import { Button } from '@material/mwc-button'
 import { Dialog } from '@material/mwc-dialog'
+import { isChinese, isKorean } from 'asian-regexps'
 
 interface Pinyin {
   text: string
@@ -13,8 +14,11 @@ interface Pinyin {
 }
 interface Word {
   text: string
-  pinyins: Pinyin[]
-  english: string | null
+  definition?: string
+  audio?: HTMLAudioElement
+  pinyins?: Pinyin[]
+  english?: string
+  lang?: string
 }
 
 declare let chrome: any
@@ -85,7 +89,7 @@ const openWordSnackbar = async (text: string, template: TemplateResult) => {
   wordSnackbar.open()
   infoSnackbar.close()
 }
-document.body.appendChild(wordSnackbar)
+document.body.prepend(wordSnackbar)
 // fix size
 wordSnackbar.updateComplete.then(async () => {
   let label: HTMLElement
@@ -103,7 +107,7 @@ const openInfoSnackbar = (text: string) => {
   infoSnackbar.labelText = text
   infoSnackbar.open()
 }
-document.body.appendChild(infoSnackbar)
+document.body.prepend(infoSnackbar)
 // fix size
 infoSnackbar.updateComplete.then(async () => {
   let label: HTMLElement
@@ -138,39 +142,58 @@ document.body.appendChild(dialog)
 const openNaverDialog = (template: TemplateResult, word: Word) => {
   openDialog(
     html`
-  ${template}
-  <mwc-button slot="secondaryAction" unelevated style="--mdc-theme-primary:#00d136" @click="${(e: Event) => {
-    window.open(`https://zh.dict.naver.com/#/search?range=example&query=${encodeURIComponent(word.text)}`)
-  }}">see examples in naver</mwc-button>
-  `,
+    ${template}
+    ${word.lang === 'chinese'
+      ? html`
+      <mwc-button slot="secondaryAction" unelevated style="--mdc-theme-primary:#00d136" @click="${(e: Event) => {
+        window.open(`https://zh.dict.naver.com/#/search?range=example&query=${encodeURIComponent(word.text)}`, '_blank')
+      }}"
+      >see examples in naver</mwc-button>`
+      : null}
+      
+    ${word.lang === 'korean'
+      ? html`
+      <mwc-button slot="secondaryAction" unelevated style="--mdc-theme-primary:#00d136" @click="${(e: Event) => {
+        window.open(`https://dict.naver.com/search.nhn?dicQuery=${encodeURIComponent(word.text)}`, '_blank')
+      }}"
+      >see on naver</mwc-button>`
+      : null}
+    `,
     word.text
   )
 }
 
 const koreanDefinitions: { [word: string]: string } = {}
 const onNaverButtonClick = async (word: Word) => {
-  if (!word || !word.pinyins.length) {
-    window.open(`https://zh.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word.text)}`, '_blank')
-  } else {
-    openNaverDialog(html`fetching...`, word)
-
-    let definition: string | number
-    if (koreanDefinitions[word.text]) {
-      definition = koreanDefinitions[word.text]
+  // chinese
+  if (word.lang === 'chinese') {
+    if (word.pinyins && !word.pinyins.length) {
+      window.open(`https://zh.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word.text)}`, '_blank')
     } else {
-      // we should fetch the informations here
-      definition = await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_definition', word: word.text }, resolve))
-    }
+      openNaverDialog(html`fetching...`, word)
 
-    if (definition === -1) {
-      openNaverDialog(html`<span style="color:red">⚠️ Korean server not running.</span>`, word)
-    } else {
-      if (definition) {
-        openNaverDialog(html`${definition}`, word)
-        koreanDefinitions[word.text] = <string>definition
+      let definition: string | number
+      if (koreanDefinitions[word.text]) {
+        definition = koreanDefinitions[word.text]
       } else {
-        openNaverDialog(html`no definition.`, word)
+        // we should fetch the informations here
+        definition = await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_definition_from_chinese', word: word.text }, resolve))
       }
+
+      if (definition === -1) {
+        openNaverDialog(html`<span style="color:red">⚠️ Korean server not running.</span>`, word)
+      } else {
+        if (definition) {
+          openNaverDialog(html`${definition}`, word)
+          koreanDefinitions[word.text] = <string>definition
+        } else {
+          openNaverDialog(html`no definition.`, word)
+        }
+      }
+    }
+  } else if (word.lang === 'korean') {
+    if (word.definition) {
+      openNaverDialog(html`<pre style="white-space:pre-wrap;padding:0 12px">${word.definition}</pre>`, word)
     }
   }
 }
@@ -179,35 +202,49 @@ const onNaverButtonClick = async (word: Word) => {
  * Update the snackbar based on a given word
  */
 const updateSnackBarFromWord = (word: Word) => {
-  // play first pinyin as the snack open
-  if (word.pinyins.length) {
-    word.pinyins[0].audio.play()
+  let title: string = ''
+  if (word.lang === 'chinese') {
+    if (word.pinyins && word.pinyins.length) {
+      word.pinyins[0].audio.play()
+    }
+    title = `${word.text}${word.pinyins && !word.pinyins.length ? ' (no information)' : ''}`
+  } else if (word.lang === 'korean') {
+    if (word.audio) {
+      word.audio.play()
+    }
+    title = `${word.text}`
   }
+
   openWordSnackbar(
-    `${word.text}${!word.pinyins.length ? ' (no information)' : ''}`,
+    title,
     html`
       <div slot="action" style="flex:1">
-      ${word.pinyins.map((pinyin: Pinyin) => {
-        // if no audio, we just display the pinyin
-        if (!pinyin.audio) {
-          return `${pinyin.text}`
-        }
+      ${word.pinyins &&
+        word.pinyins.map((pinyin: Pinyin) => {
+          // if no audio, we just display the pinyin
+          if (!pinyin.audio) {
+            return `${pinyin.text}`
+          }
 
-        return html`
-        <mwc-button unelevated dense style="margin:0 2px" @click="${(e: Event) => {
-          e.stopPropagation()
-          pinyin.audio.play()
-        }}">${pinyin.text}</mwc-button>
+          return html`
+          <mwc-button unelevated dense style="margin:0 2px" @click="${(e: Event) => {
+            e.stopPropagation()
+            pinyin.audio.play()
+          }}">${pinyin.text}</mwc-button>
         `
-      })}
+        })}
       </div>
 
+      ${word.lang === 'chinese'
+        ? html`
       <mwc-button slot="action" @click="${(e: Event) => {
         // e.stopPropagation()
         window.open(formUrl(word.text), '_blank')
       }}">
         <img src="${chrome.runtime.getURL('./images/baidu.png')}">
       </mwc-button>
+      `
+        : null}
 
       <mwc-button slot="action" @click="${(e: Event) => {
         // e.stopPropagation()
@@ -233,6 +270,20 @@ const updateSnackBarFromWord = (word: Word) => {
 }
 
 const fetchInformations = async (text: string) => {
+  // determine the language of the selected word
+  let lang: string | undefined = isChinese(text) ? 'chinese' : undefined
+  if (!lang) {
+    lang = isKorean(text) ? 'korean' : undefined
+  }
+  // japanese support ?
+  // if (!lang) {
+  //   lang = isJapanese(text) ? 'japanese' : undefined
+  // }
+
+  if (!lang) {
+    return
+  }
+
   // visual feedback
   wordSnackbar.close('clicked')
   openInfoSnackbar('fetching...')
@@ -243,20 +294,26 @@ const fetchInformations = async (text: string) => {
     return
   }
 
-  // else we fetch it from the background
-  const word: Word = <Word>await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_word', word: text }, resolve))
-
-  if (word && word.pinyins) {
-    word.pinyins.forEach(pinyin => {
-      // @ts-ignore
-      pinyin.audio = new Audio(pinyin.audio)
-      pinyin.audio.volume = 0.3
-    })
-    words[word.text] = word
-    updateSnackBarFromWord(word)
-  } else {
-    openInfoSnackbar('no entry')
+  let word: Word = { text, lang }
+  if (lang === 'chinese') {
+    word = { ...word, ...await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_word', word: text }, resolve)) }
+    if (word && word.pinyins) {
+      word.pinyins.forEach(pinyin => {
+        pinyin.audio = new Audio(<string>(<unknown>pinyin.audio))
+        pinyin.audio.volume = 0.3
+      })
+    }
+  } else if (lang === 'korean') {
+    word = { ...word, ...await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_word', word: text }, resolve)) }
+    if (word && word.audio) {
+      word.audio = new Audio(<string>(<unknown>word.audio))
+    }
   }
+
+  // @ts-ignore
+  words[word.text] = word
+  console.log(word)
+  updateSnackBarFromWord(word)
 }
 
 let mousePressed = false
@@ -272,13 +329,13 @@ const checkSelection = () => {
   if (selection) {
     let word = selection.toString()
     word = word.replace(/\s/g, '')
-    if (word.length === 0) {
-      // previousWord = ''
-      // wordSnackbar.close('clicked')
+    // minimum restriction
+    if (word.length === 0 || (isKorean(word) && word.length < 2)) {
+      // previousWord = word
       return
     }
+    // maximum restriction
     if (word.length > 5) {
-      openInfoSnackbar('select a word, not a sentence')
       return
     }
     if (previousWord && previousWord === word) {

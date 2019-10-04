@@ -33,10 +33,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         english: englishDt ? englishDt.textContent : undefined
       })
     })
-  } else if (request.message === 'fetch_korean_definition') {
-    fetch(`http://localhost:5000/korean/${request.word}`)
+  } else if (request.message === 'fetch_korean_definition_from_chinese') {
+    fetch(`http://localhost:5000/chinese/${request.word}`)
       .then(async response => {
-        console.log(response)
         if (response.status !== 200) {
           sendResponse(null)
           return
@@ -47,6 +46,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(e => {
         sendResponse(-1)
       })
+  } else if (request.message === 'fetch_korean_word') {
+    fetch(`http://localhost:5000/korean/${request.word}`)
+      .then(async response => {
+        if (response.status !== 200) {
+          sendResponse(null)
+          return
+        }
+
+        sendResponse(await response.json())
+      })
+      .catch(e => sendResponse(-1))
   }
   return true
 })
