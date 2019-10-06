@@ -26,7 +26,7 @@ In order to use the korean feature you will have to run a local server, type the
 
 ```node korean-server```
 
-This will run a local server on the port `5000`.
+This will run a local server on the port `51022`.
 Now it should work.
 
 

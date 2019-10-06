@@ -23,6 +23,7 @@
     "typescript": "^3.6.3"
   },
   "scripts": {
-    "build": "cp ./node_modules/jquery/dist/jquery.min.js . & rollup -c"
+    "build": "cp ./node_modules/jquery/dist/jquery.min.js . & rollup -c",
+    "dev": "nodemon -w server.js server.js & rollup -cw"
   }
 }
