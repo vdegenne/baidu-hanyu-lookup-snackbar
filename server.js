@@ -80,7 +80,7 @@ const fetchChineseInformationsFromBaidu = async word => {
 /**
  * Fetch a korean definition from a chinese word.
  */
-router.get('/chinese/:word', async ctx => {
+router.get('/chinesed/:word', async ctx => {
   const word = decodeURIComponent(ctx.params.word).replace(/\s/g, '')
 
   loadWords()
@@ -236,31 +236,31 @@ router.get('/chinese/:word', async ctx => {
   ctx.body = wordObject
 })
 
-if (false) {
-  // router.get('/chinese/:word', async ctx => {
-  //   const word = decodeURIComponent(ctx.params.word)
-  //   loadWords()
-  //   if (word in words) {
-  //     ctx.body = words[word]
-  //     return
-  //   }
-  //   // else we fetch it
-  //   const response = await fetch(`https://dict.naver.com/search.nhn?dicQuery=${encodeURIComponent(word)}`)
-  //   if (!response) {
-  //     return
-  //   }
-  //   const document = new JSDOM(await response.text()).window.document
-  //   const dtEntries = [...document.querySelectorAll('.dic_cn_entry_cnEntry')]
-  //   const index = dtEntries.findIndex(dt => dt.firstElementChild.textContent.trim() === word)
-  //   if (index >= 0) {
-  //     const definition = dtEntries[index].nextElementSibling.textContent.replace(/\s{2,}/g, ' ').trim()
-  //     words[word] = definition
-  //     // saveWords()
-  //     ctx.body = definition
-  //   } else {
-  //     return // 404 not found
-  //   }
-  // })
+if (true) {
+  router.get('/chinese/:word', async ctx => {
+    const word = decodeURIComponent(ctx.params.word)
+    loadWords()
+    if (word in words) {
+      ctx.body = words[word]
+      return
+    }
+    // else we fetch it
+    const response = await fetch(`https://dict.naver.com/search.nhn?dicQuery=${encodeURIComponent(word)}`)
+    if (!response) {
+      return
+    }
+    const document = new JSDOM(await response.text()).window.document
+    const dtEntries = [...document.querySelectorAll('.dic_cn_entry_cnEntry')]
+    const index = dtEntries.findIndex(dt => dt.firstElementChild.textContent.trim() === word)
+    if (index >= 0) {
+      const definition = dtEntries[index].nextElementSibling.textContent.replace(/\s{2,}/g, ' ').trim()
+      words[word] = definition
+      // saveWords()
+      ctx.body = definition
+    } else {
+      return // 404 not found
+    }
+  })
 }
 
 /**

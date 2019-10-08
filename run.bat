@@ -1,0 +1,1 @@
+bash pm2.sh
