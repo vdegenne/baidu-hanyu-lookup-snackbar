@@ -25,7 +25,6 @@ declare let chrome: any
 
 /* add the styles to the document */
 $(`
-<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500" rel="stylesheet">
   <style>
     @font-face {
       font-family: 'Roboto';
