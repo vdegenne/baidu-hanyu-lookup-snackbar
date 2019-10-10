@@ -4,17 +4,21 @@ import '@material/mwc-icon-button'
 import '@material/mwc-button'
 import '@material/mwc-dialog'
 import { html, TemplateResult, render } from 'lit-html'
+import { unsafeHTML } from 'lit-html/directives/unsafe-html'
 import { Button } from '@material/mwc-button'
 import { Dialog } from '@material/mwc-dialog'
-import { isChinese, isKorean } from 'asian-regexps'
+import { isChinese, isKorean, koreanRegExp, chineseRegExp } from 'asian-regexps'
 
 interface Pinyin {
   text: string
-  audio: HTMLAudioElement
+  audio: HTMLAudioElement[]
 }
 interface Word {
-  text: string
+  getKey: Function
+  traditional?: string
+  simplified?: string
   definition?: string
+  kor?: string
   audio?: HTMLAudioElement
   pinyins?: Pinyin[]
   english?: string
@@ -71,6 +75,7 @@ $(`
     mwc-dialog, mwc-icon-button:not(:last-of-type), html {
       --mdc-theme-primary: #2932e1;
       --mdc-snackbar-action-color: #2932e1;
+      /*--mdc-dialog-max-width:400px;*/
     }
     mwc-icon {
       margin: 0 5px;
@@ -183,7 +188,7 @@ const openNaverDialog = (template: TemplateResult, word: Word) => {
     ${word.lang === 'chinese'
       ? html`
       <mwc-button slot="secondaryAction" unelevated style="--mdc-theme-primary:#00d136" @click="${(e: Event) => {
-        window.open(`https://zh.dict.naver.com/#/search?range=example&query=${encodeURIComponent(word.text)}`, '_blank')
+        window.open(`https://zh.dict.naver.com/#/search?range=example&query=${encodeURIComponent(word.getKey())}`, '_blank')
       }}"
       >see examples in naver</mwc-button>`
       : null}
@@ -191,46 +196,62 @@ const openNaverDialog = (template: TemplateResult, word: Word) => {
     ${word.lang === 'korean'
       ? html`
       <mwc-button slot="secondaryAction" unelevated style="--mdc-theme-primary:#00d136" @click="${(e: Event) => {
-        window.open(`https://dict.naver.com/search.nhn?dicQuery=${encodeURIComponent(word.text)}`, '_blank')
+        window.open(`https://dict.naver.com/search.nhn?dicQuery=${encodeURIComponent(word.getKey())}`, '_blank')
       }}"
       >see on naver</mwc-button>`
       : null}
     `,
-    word.text
+    word.getKey()
   )
 }
 
-const koreanDefinitions: { [word: string]: string } = {}
 const onNaverButtonClick = async (word: Word) => {
   // chinese
   if (word.lang === 'chinese') {
     if (word.pinyins && !word.pinyins.length) {
-      window.open(`https://zh.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word.text)}`, '_blank')
+      window.open(`https://zh.dict.naver.com/#/search?range=all&query=${encodeURIComponent(word.getKey())}`, '_blank')
     } else {
       openNaverDialog(html`fetching...`, word)
-
-      let definition: string | number
-      if (koreanDefinitions[word.text]) {
-        definition = koreanDefinitions[word.text]
+      if (word.kor) {
+        // @ts-ignore
+        openNaverDialog(
+          html`
+        <div style="padding:0 12px">
+          ${unsafeHTML(word.kor.replace(/\n/g, '<br>'))}
+        </div>
+        `,
+          word
+        )
       } else {
-        // we should fetch the informations here
-        definition = await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_definition_from_chinese', word: word.text }, resolve))
+        openNaverDialog(html`no definition`, word)
       }
+      // let definition: string | number
+      // if (koreanDefinitions[word.getKey()]) {
+      //   definition = koreanDefinitions[word.]
+      // } else {
+      //   // we should fetch the informations here
+      //   definition = await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_definition_from_chinese', word: word.text }, resolve))
+      // }
 
-      if (definition === -1) {
-        openNaverDialog(html`<span style="color:red">⚠️ Korean server not running.</span>`, word)
-      } else {
-        if (definition) {
-          openNaverDialog(html`${definition}`, word)
-          koreanDefinitions[word.text] = <string>definition
-        } else {
-          openNaverDialog(html`no definition.`, word)
-        }
-      }
+      // if (word.kor === -1) {
+      //   openNaverDialog(html`<span style="color:red">⚠️ Korean server not running.</span>`, word)
+      // } else {
+      //   if (definition) {
+      //     openNaverDialog(html`${definition}`, word)
+      //     koreanDefinitions[word.text] = <string>definition
+      //   } else {
+      //     openNaverDialog(html`no definition.`, word)
+      //   }
+      // }
     }
   } else if (word.lang === 'korean') {
     if (word.definition) {
-      openNaverDialog(html`<pre style="white-space:pre-wrap;padding:0 12px">${word.definition}</pre>`, word)
+      openNaverDialog(
+        html`
+      <div style="padding:0 12px">${unsafeHTML(word.definition.replace(/\n/g, '<br>'))}</div>
+      `,
+        word
+      )
     }
   }
 }
@@ -240,16 +261,28 @@ const onNaverButtonClick = async (word: Word) => {
  */
 const updateSnackBarFromWord = (word: Word) => {
   let title: string = ''
-  if (word.lang === 'chinese') {
-    if (word.pinyins && word.pinyins.length) {
-      word.pinyins[0].audio.play()
-    }
-    title = `${word.text}${word.pinyins && !word.pinyins.length ? ' (no information)' : ''}`
-  } else if (word.lang === 'korean') {
-    if (word.audio) {
-      word.audio.play()
-    }
-    title = `${word.text}`
+  switch (word.lang) {
+    case 'chinese':
+      if (word.pinyins && word.pinyins.length && word.pinyins[0].audio && word.pinyins[0].audio.length) {
+        word.pinyins[0].audio[0].play()
+      }
+      if (word.traditional) {
+        title += `${word.traditional} (${word.simplified})`
+      } else if (word.simplified) {
+        title += word.simplified
+      } else {
+        title += word.getKey()
+      }
+      if (word.pinyins && !word.pinyins.length) {
+        title += ' (no information)'
+      }
+      break
+    case 'korean':
+      if (word.audio) {
+        word.audio.play()
+      }
+      title = `${word.getKey()}`
+      break
   }
 
   openWordSnackbar(
@@ -265,8 +298,8 @@ const updateSnackBarFromWord = (word: Word) => {
 
           return html`
           <mwc-button unelevated dense style="margin:0 2px" @click="${(e: Event) => {
-            e.stopPropagation()
-            pinyin.audio.play()
+            // e.stopPropagation()
+            pinyin.audio[0].play()
           }}">${pinyin.text}</mwc-button>
         `
         })}
@@ -276,27 +309,27 @@ const updateSnackBarFromWord = (word: Word) => {
         ? html`
       <mwc-button slot="action" @click="${(e: Event) => {
         // e.stopPropagation()
-        window.open(formUrl(word.text), '_blank')
+        window.open(formUrl(word.simplified || word.getKey()), '_blank')
       }}">
         <img src="${chrome.runtime.getURL('./images/baidu.png')}">
       </mwc-button>
       `
         : null}
 
-      <mwc-button slot="action" @click="${(e: Event) => {
-        // e.stopPropagation()
-        onNaverButtonClick(word)
-        // window.open(formNaverUrl(word.text), '_blank')
-      }}">
+      <mwc-button slot="action" @click="${(e: Event) => onNaverButtonClick(word)}">
         <img src="${chrome.runtime.getURL('./images/korean.png')}">
       </mwc-button>
 
+      ${word.english
+        ? html`
       <mwc-button slot="action" @click="${(e: Event) => {
         // e.stopPropagation()
-        openDialog(html`${word.english}`, word.text)
+        openDialog(html`${unsafeHTML((word.english as string).replace(/;/g, '<br>'))}`, word.getKey())
       }}">
         <img src="${chrome.runtime.getURL('./images/english.jpg')}">
       </mwc-button>
+      `
+        : null}
 
       <mwc-icon-button icon="close" slot="dismiss" @click="${(e: Event) => {
         e.stopPropagation()
@@ -331,26 +364,65 @@ const fetchInformations = async (text: string) => {
     return
   }
 
-  let word: Word = { text, lang }
-  if (lang === 'chinese') {
-    word = { ...word, ...await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_word', word: text }, resolve)) }
-    if (word && word.pinyins) {
-      word.pinyins.forEach(pinyin => {
-        pinyin.audio = new Audio(<string>(<unknown>pinyin.audio))
-        pinyin.audio.volume = 0.3
-      })
-    }
-  } else if (lang === 'korean') {
-    word = { ...word, ...await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_word', word: text }, resolve)) }
-    if (word && word.audio) {
-      word.audio = new Audio(<string>(<unknown>word.audio))
-    }
+  let word: Word
+  switch (lang) {
+    case 'chinese':
+      word = await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_chinese_word', word: text }, resolve))
+      if (word.pinyins) {
+        word.pinyins.forEach(pinyin => {
+          console.log(pinyin.audio)
+          if (pinyin.audio) {
+            pinyin.audio = pinyin.audio.map((url: any) => {
+              const audio = new Audio(url)
+              audio.volume = 1
+              return audio
+            })
+          }
+        })
+      }
+
+      word = Object.assign(
+        // @ts-ignore
+        word !== -1 ? word : {},
+        <Word>{
+          lang: 'chinese',
+          getKey: function(): string {
+            if (this.traditional) {
+              return this.traditional
+            }
+            if (this.simplified) {
+              return this.simplified
+            } else {
+              return text
+            }
+          }
+        }
+      )
+      break
+    case 'korean':
+      word = await new Promise(resolve => chrome.runtime.sendMessage({ message: 'fetch_korean_word', word: text }, resolve))
+      if (word && word.audio) {
+        // @ts-ignore
+        word.audio = new Audio(word.audio)
+      }
+
+      word = Object.assign(
+        // @ts-ignore
+        word !== -1 ? word : {},
+        <Word>{
+          lang: 'korean',
+          getKey: function(): string {
+            return text
+          }
+        }
+      )
   }
 
   // @ts-ignore
-  words[word.text] = word
-  console.log(word)
-  updateSnackBarFromWord(word)
+  if (word) {
+    console.log(word)
+    updateSnackBarFromWord(word)
+  }
 }
 
 let mousePressed = false
@@ -364,8 +436,10 @@ let previousWord: string
 const checkSelection = () => {
   const selection = window.getSelection()
   if (selection) {
+    /* prepare the selection */
     let word = selection.toString()
     word = word.replace(/\s/g, '')
+    /* restrictions */
     // minimum restriction
     if (word.length === 0 || (isKorean(word) && word.length < 2)) {
       // previousWord = word
@@ -374,6 +448,23 @@ const checkSelection = () => {
     // maximum restriction
     if (word.length > 5) {
       return
+    }
+    // korean
+    if (isKorean(word)) {
+      if (word.length < 2) {
+        return
+      }
+      const matches = word.match(new RegExp(koreanRegExp, 'g'))
+      if (!(matches && matches.length === 1 && matches[0].length === word.length)) {
+        return
+      }
+    }
+    // chinese
+    if (isChinese(word)) {
+      const matches = word.match(new RegExp(chineseRegExp, 'g'))
+      if (!(matches && matches.length === 1 && matches[0].length === word.length)) {
+        return
+      }
     }
     if (previousWord && previousWord === word) {
       return

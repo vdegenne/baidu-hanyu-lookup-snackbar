@@ -1,38 +1,17 @@
-const formUrl = word => {
-  return `https://hanyu.baidu.com/s?wd=${encodeURIComponent(word)}&ptype=zici`
-}
 const parser = new DOMParser()
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.message === 'fetch_word') {
-    fetch(formUrl(request.word)).then(async response => {
-      if (response.status !== 200) {
-        sendResponse(null)
-        return
-      }
+  if (request.message === 'fetch_chinese_word') {
+    fetch(`http://localhost:51022/chinese/${request.word}`)
+      .then(async response => {
+        if (response.status !== 200) {
+          sendResponse(null)
+          return
+        }
 
-      const content = await response.text()
-      const document = parser.parseFromString(content, 'text/html')
-      const spans = [...document.querySelectorAll('[id=pinyin] span')]
-      const englishDt = document.querySelector('[id=fanyi-wrapper] .tab-content dt')
-
-      sendResponse({
-        text: request.word,
-        pinyins: spans.map(element => {
-          // text
-          let text = element.firstElementChild.textContent
-          if (text.trim().startsWith('[')) {
-            text = text.trim().slice(1, -1).trim()
-          }
-
-          // audio
-          let audio = element.lastElementChild.getAttribute('url')
-
-          return { text, audio }
-        }),
-        english: englishDt ? englishDt.textContent : undefined
+        sendResponse(await response.json())
       })
-    })
+      .catch(e => sendResponse(-1))
   } else if (request.message === 'fetch_korean_definition_from_chinese') {
     fetch(`http://localhost:51022/chinese/${request.word}`)
       .then(async response => {
@@ -43,9 +22,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         sendResponse(await response.text())
       })
-      .catch(e => {
-        sendResponse(-1)
-      })
+      .catch(e => sendResponse(-1))
   } else if (request.message === 'fetch_korean_word') {
     fetch(`http://localhost:51022/korean/${request.word}`)
       .then(async response => {
@@ -53,7 +30,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse(null)
           return
         }
-
         sendResponse(await response.json())
       })
       .catch(e => sendResponse(-1))

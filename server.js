@@ -9,7 +9,7 @@ const fs = require('fs')
 /**
  * constants & co
  */
-let koreanWordsFile = './korean-words.json'
+let koreanWordsFile = './words.json'
 let words
 // the timeout is used to space the ram
 // when the data is not requested for some time we clear it from the process
@@ -24,7 +24,7 @@ const loadWords = () => {
       words = JSON.parse(fs.readFileSync(koreanWordsFile))
     } catch (e) {
       /* the file was not find */
-      fs.writeFileSync('./korean-words.json')
+      fs.writeFileSync(koreanWordsFile)
       words = {}
     }
     // timeout
@@ -71,7 +71,7 @@ const fetchChineseInformationsFromBaidu = async word => {
       // audio
       let audio = element.lastElementChild.getAttribute('url')
 
-      return { text, audio }
+      return { text, audio: [audio] }
     }),
     english: englishDt ? englishDt.textContent : undefined
   }
@@ -80,7 +80,7 @@ const fetchChineseInformationsFromBaidu = async word => {
 /**
  * Fetch a korean definition from a chinese word.
  */
-router.get('/chinesed/:word', async ctx => {
+router.get('/chinese/:word', async ctx => {
   const word = decodeURIComponent(ctx.params.word).replace(/\s/g, '')
 
   loadWords()
@@ -176,19 +176,27 @@ router.get('/chinesed/:word', async ctx => {
     }
 
     // pinyins audio
-    for (const obj of zhCandidates.filter(i => i.searchPhoneticSymbolList.length > 0).map(i => i.searchPhoneticSymbolList[0])) {
-      if (!wordObject.pinyins) {
-        wordObject.pinyins = []
+    // IGNORED : urls from naver includes a temporary code
+    // the sound won't be fetchable again when the code expired on the remote.
+    if (false) {
+      for (const obj of zhCandidates.filter(i => i.searchPhoneticSymbolList.length > 0).map(i => i.searchPhoneticSymbolList[0])) {
+        if (!wordObject.pinyins) {
+          wordObject.pinyins = []
+        }
+        const text = cleanPinyin(obj.phoneticSymbol)
+        if (wordObject.pinyins.some(p => p.text === text)) {
+          continue
+        }
+        const pinyin = {
+          text,
+          //audio: [obj.phoneticSymbolPath.substring(0, obj.phoneticSymbolPath.indexOf('.mp3') + 4)]
+          audio: []
+        }
+        if (obj.phoneticSymbolPath) {
+          pinyin.audio.push(obj.phoneticSymbolPath.split('|')[0])
+        }
+        wordObject.pinyins.push(pinyin)
       }
-      const text = cleanPinyin(obj.phoneticSymbol)
-      if (wordObject.pinyins.some(p => p.text === text)) {
-        continue
-      }
-      wordObject.pinyins.push({
-        text,
-        //audio: [obj.phoneticSymbolPath.substring(0, obj.phoneticSymbolPath.indexOf('.mp3') + 4)]
-        audio: [obj.phoneticSymbolPath.split('|')[0]]
-      })
     }
 
     // korean definition
@@ -237,7 +245,7 @@ router.get('/chinesed/:word', async ctx => {
 })
 
 if (true) {
-  router.get('/chinese/:word', async ctx => {
+  router.get('/chinesed/:word', async ctx => {
     const word = decodeURIComponent(ctx.params.word)
     loadWords()
     if (word in words) {
