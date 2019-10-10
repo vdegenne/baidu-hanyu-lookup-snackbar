@@ -4,7 +4,7 @@ const cors = require('@koa/cors')
 const fetch = require('node-fetch')
 const { JSDOM } = require('jsdom')
 const fs = require('fs')
-// const { isChinese, isKorean } = require('asian-regexps/legacy')
+const { isChinese, isKorean, chineseRegExp } = require('asian-regexps/legacy')
 
 /**
  * constants & co
@@ -81,7 +81,20 @@ const fetchChineseInformationsFromBaidu = async word => {
  * Fetch a korean definition from a chinese word.
  */
 router.get('/chinese/:word', async ctx => {
-  const word = decodeURIComponent(ctx.params.word).replace(/\s/g, '')
+  let word = decodeURIComponent(ctx.params.word).replace(/\s/g, '')
+  if (word !== '的') {
+    word = word.replace(/^的+|的+$/g, '')
+  }
+
+  if (word.length > 4) {
+    return
+  }
+
+  /* verify the provided input is one chinese word */
+  const matches = word.match(new RegExp(chineseRegExp, 'g'))
+  if (!(matches && matches.length === 1 && matches[0].length === word.length)) {
+    return
+  }
 
   loadWords()
   if (word in words) {
@@ -101,7 +114,7 @@ router.get('/chinese/:word', async ctx => {
   let result = await response.json()
   if (result) {
     wordItems = result.searchResultMap.searchResultListMap.WORD.items
-    meaningItems = result.searchResultMap.searchResultListMap.MEANING.items
+    // meaningItems = result.searchResultMap.searchResultListMap.MEANING.items
 
     if (wordItems.length > 0) {
       wordCandidates = wordItems.filter(i => {
@@ -233,11 +246,15 @@ router.get('/chinese/:word', async ctx => {
   await baiduFetchPromise
 
   /* save the word */
-  if (wordObject.traditional) {
-    words[wordObject.traditional] = wordObject
-    saveWords()
-  } else if (wordObject.simplified) {
+  // if (wordObject.traditional) {
+  //   words[wordObject.traditional] = wordObject
+  //   saveWords()
+  // }
+  if (wordObject.simplified) {
     words[wordObject.simplified] = wordObject
+    saveWords()
+  } else {
+    words[word] = {}
     saveWords()
   }
 
