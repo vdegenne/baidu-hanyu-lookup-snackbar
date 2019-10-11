@@ -85,6 +85,9 @@ router.get('/chinese/:word', async ctx => {
   if (word !== '的') {
     word = word.replace(/^的+|的+$/g, '')
   }
+  if (word !== '是') {
+    word = word.replace(/^是+|是+$/g, '')
+  }
 
   if (word.length > 4) {
     return
