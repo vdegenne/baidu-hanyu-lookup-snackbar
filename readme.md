@@ -2,6 +2,9 @@
 
 Chrome extension that displays a handful snackbar with pronunciation feature and quick dictionaries access when you select a Chinese word in Chrome Browser.
 
+> ⚠️ This repository is not maintain anymore. The continuation of this project is in private domain (use the email at the bottom of this readme if you are interesting about the current state of the project.)
+
+
 <p align="center">
   <img src="./screenshot.bmp" width="80%">
 </p>
