@@ -11,7 +11,7 @@ import { isChinese, isKorean, koreanRegExp, chineseRegExp } from 'asian-regexps'
 
 interface Pinyin {
   text: string
-  audio: HTMLAudioElement[]
+  audio: HTMLAudioElement
 }
 interface Word {
   getKey: Function
@@ -263,8 +263,8 @@ const updateSnackBarFromWord = (word: Word) => {
   let title: string = ''
   switch (word.lang) {
     case 'chinese':
-      if (word.pinyins && word.pinyins.length && word.pinyins[0].audio && word.pinyins[0].audio.length) {
-        word.pinyins[0].audio[0].play()
+      if (word.pinyins && word.pinyins.length > 0 && word.pinyins[0].audio) {
+        word.pinyins[0].audio.play()
       }
       if (word.traditional) {
         title += `${word.traditional} (${word.simplified})`
@@ -299,7 +299,7 @@ const updateSnackBarFromWord = (word: Word) => {
           return html`
           <mwc-button unelevated dense style="margin:0 2px" @click="${(e: Event) => {
             // e.stopPropagation()
-            pinyin.audio[0].play()
+            pinyin.audio.play()
           }}">${pinyin.text}</mwc-button>
         `
         })}
@@ -372,11 +372,8 @@ const fetchInformations = async (text: string) => {
         word.pinyins.forEach(pinyin => {
           console.log(pinyin.audio)
           if (pinyin.audio) {
-            pinyin.audio = pinyin.audio.map((url: any) => {
-              const audio = new Audio(url)
-              audio.volume = 1
-              return audio
-            })
+            // @ts-ignore
+            pinyin.audio = new Audio(pinyin.audio)
           }
         })
       }
