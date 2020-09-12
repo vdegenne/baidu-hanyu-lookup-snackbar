@@ -16,7 +16,7 @@
     "koa": "^2.8.2",
     "koa-router": "^7.4.0",
     "lit-html": "^1.1.2",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript": "^1.0.1",
     "tslib": "^1.10.0",
